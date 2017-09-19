@@ -1153,7 +1153,10 @@
 			if (type === 'dir') {
 				mime = mime || 'httpd/unix-directory';
 
-				if (fileData.mountType && fileData.mountType.indexOf('external') === 0) {
+				if (fileData.isEncrypted) {
+					icon = OC.MimeType.getIconUrl('dir-encrypted');
+					dataIcon = icon;
+				} else if (fileData.mountType && fileData.mountType.indexOf('external') === 0) {
 					icon = OC.MimeType.getIconUrl('dir-external');
 					dataIcon = icon;
 				}
@@ -1169,7 +1172,8 @@
 				"data-mtime": mtime,
 				"data-etag": fileData.etag,
 				"data-permissions": fileData.permissions || this.getDirectoryPermissions(),
-				"data-has-preview": fileData.hasPreview !== false
+				"data-has-preview": fileData.hasPreview !== false,
+				"data-e2eencrypted": (type === 'dir' && fileData.isEncrypted)
 			});
 
 			if (dataIcon) {
