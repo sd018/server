@@ -48,6 +48,7 @@ use OCA\User_LDAP\User\OfflineUser;
 use OCA\User_LDAP\Mapping\AbstractMapping;
 
 use OC\ServerNotAvailableException;
+use OCP\IServerContainer;
 
 /**
  * Class Access
@@ -86,14 +87,22 @@ class Access extends LDAPUtility implements IUserTools {
 	 * @var \OCA\User_LDAP\Helper
 	 */
 	private $helper;
+	/** @var IServerContainer */
+	private $c;
 
-	public function __construct(Connection $connection, ILDAPWrapper $ldap,
-		Manager $userManager, Helper $helper) {
+	public function __construct(
+		Connection $connection,
+		ILDAPWrapper $ldap,
+		Manager $userManager,
+		Helper $helper,
+		IServerContainer $c
+	) {
 		parent::__construct($ldap);
 		$this->connection = $connection;
 		$this->userManager = $userManager;
 		$this->userManager->setLdapAccess($this);
 		$this->helper = $helper;
+		$this->c = $c;
 	}
 
 	/**
@@ -818,6 +827,8 @@ class Access extends LDAPUtility implements IUserTools {
 	 */
 	public function batchApplyUserAttributes(array $ldapRecords){
 		$displayNameAttribute = strtolower($this->connection->ldapUserDisplayName);
+		$config = $this->c->getConfig();
+		$isBackgroundJobModeAjax = $config->getAppValue('core', 'backgroundjobs_mode', 'ajax') === 'ajax';
 		foreach($ldapRecords as $userRecord) {
 			if(!isset($userRecord[$displayNameAttribute])) {
 				// displayName is obligatory
@@ -825,7 +836,7 @@ class Access extends LDAPUtility implements IUserTools {
 			}
 			$newlyMapped = false;
 			$ocName  = $this->dn2ocname($userRecord['dn'][0], null, true, $newlyMapped);
-			if($ocName === false || $newlyMapped === false) {
+			if($ocName === false || ($newlyMapped === false && !$isBackgroundJobModeAjax)) {
 				continue;
 			}
 			$this->cacheUserExists($ocName);
