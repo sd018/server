@@ -273,6 +273,7 @@ class Configuration {
 			}
 			$this->saveValue($cta[$key], $value);
 		}
+		$this->saveValue('_lastChange', time());
 	}
 
 	/**

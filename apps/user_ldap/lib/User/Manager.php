@@ -27,6 +27,7 @@
 namespace OCA\User_LDAP\User;
 
 use OC\Cache\CappedMemoryCache;
+use OCA\User_LDAP\Access;
 use OCA\User_LDAP\LogWrapper;
 use OCA\User_LDAP\FilesystemHelper;
 use OCP\IAvatarManager;
@@ -166,8 +167,9 @@ class Manager {
 	 * @return string[]
 	 */
 	public function getAttributes($minimal = false) {
-		$attributes = array('dn', 'uid', 'samaccountname', 'memberof');
+		$attributes = array_merge(Access::UUID_ATTRIBUTES, ['dn', 'uid', 'samaccountname', 'memberof']);
 		$possible = array(
+			$this->access->getConnection()->ldapExpertUUIDUserAttr,
 			$this->access->getConnection()->ldapQuotaAttribute,
 			$this->access->getConnection()->ldapEmailAttribute,
 			$this->access->getConnection()->ldapUserDisplayName,
