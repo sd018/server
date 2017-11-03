@@ -29,8 +29,11 @@
 
 namespace OCA\User_LDAP\Tests;
 
+use OCA\User_LDAP\Access;
+use OCA\User_LDAP\Connection;
 use OCA\User_LDAP\Group_LDAP as GroupLDAP;
 use OCA\User_LDAP\ILDAPWrapper;
+use OCA\User_LDAP\User\Manager;
 
 /**
  * Class GroupLDAPTest
@@ -40,6 +43,9 @@ use OCA\User_LDAP\ILDAPWrapper;
  * @package OCA\User_LDAP\Tests
  */
 class Group_LDAPTest extends \Test\TestCase {
+	/**
+	 * @return \PHPUnit_Framework_MockObject_MockObject|Access
+	 */
 	private function getAccessMock() {
 		static $conMethods;
 		static $accMethods;
@@ -53,14 +59,8 @@ class Group_LDAPTest extends \Test\TestCase {
 			->setMethods($conMethods)
 			->setConstructorArgs([$lw, null, null])
 			->getMock();
-		$um = $this->getMockBuilder('\OCA\User_LDAP\User\Manager')
-			->disableOriginalConstructor()
-			->getMock();
-		$helper = new \OCA\User_LDAP\Helper(\OC::$server->getConfig());
-		$access = $this->getMockBuilder('\OCA\User_LDAP\Access')
-			->setMethods($accMethods)
-			->setConstructorArgs([$connector, $lw, $um, $helper])
-			->getMock();
+
+		$access = $this->createMock(Access::class);
 
 		$access->expects($this->any())
 			->method('getConnection')
@@ -69,7 +69,12 @@ class Group_LDAPTest extends \Test\TestCase {
 		return $access;
 	}
 
+	/**
+	 * @param Access|\PHPUnit_Framework_MockObject_MockObject $access
+	 */
 	private function enableGroups($access) {
+		$access->connection = $this->createMock(Connection::class);
+
 		$access->connection->expects($this->any())
 			->method('__get')
 			->will($this->returnCallback(function($name) {
@@ -437,7 +442,6 @@ class Group_LDAPTest extends \Test\TestCase {
 		$access->connection->expects($this->any())
 			->method('getFromCache')
 			->will($this->returnValue(null));
-
 		$access->expects($this->any())
 			->method('readAttribute')
 			->will($this->returnCallback(function($dn, $attr) {
@@ -448,14 +452,13 @@ class Group_LDAPTest extends \Test\TestCase {
 				}
 				return array();
 			}));
-
 		$access->expects($this->any())
 			->method('groupname2dn')
 			->will($this->returnValue('cn=foobar,dc=foo,dc=bar'));
-
 		$access->expects($this->exactly(2))
 			->method('nextcloudUserNames')
 			->willReturnOnConsecutiveCalls(['lisa', 'bart', 'kira', 'brad'], ['walle', 'dino', 'xenia']);
+		$access->userManager = $this->createMock(Manager::class);
 
 		$groupBackend = new GroupLDAP($access);
 		$users = $groupBackend->usersInGroup('foobar');
@@ -474,7 +477,6 @@ class Group_LDAPTest extends \Test\TestCase {
 		$access->connection->expects($this->any())
 			->method('getFromCache')
 			->will($this->returnValue(null));
-
 		$access->expects($this->any())
 			->method('readAttribute')
 			->will($this->returnCallback(function($dn, $attr) {
@@ -483,14 +485,13 @@ class Group_LDAPTest extends \Test\TestCase {
 				}
 				return array();
 			}));
-
 		$access->expects($this->any())
 			->method('groupname2dn')
 			->will($this->returnValue('cn=foobar,dc=foo,dc=bar'));
-
 		$access->expects($this->once())
 			->method('nextcloudUserNames')
 			->will($this->returnValue(array('lisa', 'bart', 'kira', 'brad')));
+		$access->userManager = $this->createMock(Manager::class);
 
 		$groupBackend = new GroupLDAP($access);
 		$users = $groupBackend->usersInGroup('foobar');
@@ -567,6 +568,7 @@ class Group_LDAPTest extends \Test\TestCase {
 	public function testGetUserGroupsMemberOfDisabled() {
 		$access = $this->getAccessMock();
 
+		$access->connection = $this->createMock(Connection::class);
 		$access->connection->expects($this->any())
 			->method('__get')
 			->will($this->returnCallback(function($name) {
@@ -602,6 +604,7 @@ class Group_LDAPTest extends \Test\TestCase {
 	public function testGetGroupsByMember() {
 		$access = $this->getAccessMock();
 
+		$access->connection = $this->createMock(Connection::class);
 		$access->connection->expects($this->any())
 			->method('__get')
 			->will($this->returnCallback(function($name) {
