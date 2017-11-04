@@ -1342,6 +1342,9 @@ div.crumb {
 		.popovermenu {
 			top: 100%;
 			margin-right: 3px;
+			.in-breadcrumb {
+				display: none;
+			}
 		}
 	}
 	&.hidden {
@@ -1358,6 +1361,10 @@ div.crumb {
 		text-overflow: ellipsis;
 		white-space: nowrap;
 		overflow: hidden;
+		&.icon-home {
+			// Hide home text
+			text-indent: -9999px;
+		}
 	}
 	> a[class^='icon-'] {
 		padding: 0;
