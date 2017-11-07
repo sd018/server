@@ -1324,6 +1324,87 @@ class CalDavBackend extends AbstractBackend implements SyncSupport, Subscription
 	}
 
 	/**
+	 * used for Nextcloud's calendar API
+	 *
+	 * @param array $calendarInfo
+	 * @param string $pattern
+	 * @param array $searchProperties
+	 * @param array $options
+	 * @param integer|null $limit
+	 * @param integer|null $offset
+	 *
+	 * @return array
+	 */
+	public function search(array $calendarInfo, $pattern, array $searchProperties,
+						   array $options, $limit, $offset) {
+		$outerQuery = $this->db->getQueryBuilder();
+		$innerQuery = $this->db->getQueryBuilder();
+
+		$innerQuery->selectDistinct('op.objectid')
+			->from($this->dbObjectPropertiesTable, 'op')
+			->andWhere($innerQuery->expr()->eq('op.calendarid',
+				$innerQuery->createNamedParameter($calendarInfo['id'])));
+
+		// only return public items for shared calendars for now
+		if ($calendarInfo['principaluri'] !== $calendarInfo['{http://owncloud.org/ns}owner-principal']) {
+			$innerQuery->andWhere($innerQuery->expr()->eq('c.classification',
+				$innerQuery->createNamedParameter(self::CLASSIFICATION_PUBLIC)));
+		}
+
+		$or = $innerQuery->expr()->orX();
+		foreach($searchProperties as $searchProperty) {
+			$or->add($innerQuery->expr()->eq('op.name',
+				$innerQuery->createNamedParameter($searchProperty)));
+		}
+		$innerQuery->andWhere($or);
+
+		// TODO - add component-type
+
+		if ($pattern !== '') {
+			$innerQuery->andWhere($innerQuery->expr()->iLike('op.value',
+				'%' . $this->db->escapeLikeParameter($pattern) . '%'));
+		}
+
+		$outerQuery->select('c.id', 'c.calendardata', 'c.componenttype', 'c.uid')
+			->from('calendarobjects', 'c');
+
+		if (isset($options['timerange'])) {
+			if (isset($options['timerange']['start'])) {
+				$outerQuery->andWhere($outerQuery->expr()->gt('lastoccurence',
+					$outerQuery->createNamedParameter($options['timerange']['start']->getTimeStamp)));
+
+			}
+			if (isset($options['timerange']['end'])) {
+				$outerQuery->andWhere($outerQuery->expr()->lt('firstoccurence',
+					$outerQuery->createNamedParameter($options['timerange']['end']->getTimeStamp)));
+			}
+
+		}
+
+		$outerQuery->andWhere($outerQuery->expr()->in('c.id',
+			$outerQuery->createFunction($innerQuery->getSQL())));
+
+		if ($offset) {
+			$outerQuery->setFirstResult($offset);
+		}
+		if ($limit) {
+			$outerQuery->setMaxResults($limit);
+		}
+
+		$result = $outerQuery->execute();
+		$calendarObjects = $result->fetchAll();
+
+		return array_map(function($o) {
+			return [
+				'id' => $o['id'],
+				'type' => $o['componenttype'],
+				'uid' => $o['uid'],
+				'objects' => [],
+			];
+		}, $calendarObjects);
+	}
+
+	/**
 	 * Searches through all of a users calendars and calendar objects to find
 	 * an object with a specific UID.
 	 *
